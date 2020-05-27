@@ -2,6 +2,12 @@
 extern int yyparse();
 extern FILE *yyin;
 
+/*
+ Fecha: 25/05/2020
+ Autor: Martínez Martínez Brayan Eduardo
+ Descripción: Función main para comunicarse con el analizador léxico y con el sintáctico
+ */
+
 int main(int argc,char** argv){
     FILE *f;
     if(argc<2){
