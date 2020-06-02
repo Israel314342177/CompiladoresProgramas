@@ -1,86 +1,37 @@
 #include<stdio.h>
+#include <string.h>
 #include "tabla_tipos.h"
 #include "tabla_simbolos.h"
-#include "DATOS.h"
+
+void simbolos();
+void tipos();
 
 /*
- Fecha: 25/05/2020
- Autor(es): Martínez Martínez Brayan Eduardo
- Pachuca Cortes Santiago Emilio
- Descripción: Función main para comunicarse con el analizador léxico y con el sintáctico
- */
-    /*En main.c escribir c´odigo donde se hagan pruebas con datos para
-    *crear una pila
-    *insertar dos tablas
-    *llenar con tres elementos la tabla de la cima e imprimirla
-    sacar de la pila
-    liberar la memora de la pila,
-    tanto para los tipos como para los s´ımbolos.*/
-void menu();
-void acciones(int accion,int simTip);
-void autom();
-
+ Fecha: 30/05/2020
+ Autor: Martínez Martínez Brayan Eduardo
+ Descripción: Función main que llama a la funcion tipos() para realizar las pruebas con los tipos
+ y llama a la funcion simbolos() para realizar las pruebas con los simbolos
+ Modifico: Pachuca Cortes Santiago Emilio el 31/05/2020
+ Modificacion:
+ quitar codigo innecesario, reacomodar el codigo para cada funcion
+*/
 int main(){
     printf(" Operaciones con tablas de simbolos y tipos\n");
-    int opTS,opA;
-    do{
-        printf("\t --- Menu principal: ---\n\n");
-        printf(" [0] TERMINAR (SALIR).\n");
-        printf(" [1] PRUEBAS CON SIMBOLOS (PRUEBA MANUAL).\n");
-        printf(" [2] PRUEBAS CON TIPOS (PRUEBA MANUAL).\n");
-        printf(" [3] PRUEBA AUTOMATICA.\n");
-        fflush(stdin);
-        scanf("%d",opTS);
-        if(opTS==1 || opTS==2){ 
-            if(opTS==1) printf("\n Pruebas con Simbolos.\n");
-            else printf("\n Pruebas con Tipos.\n");
-            menu();
-            fflush(stdin);
-            scanf("%d",opA);
-            acciones(opA,opTS);
-        }
-        else if(opTS==3){
-            printf("\n Prueba Automatica con Simbolos y Tipos.\n");
-            autom();
-        }
-    }while(opTS!=0);
+    tipos();
+    simbolos();
     return 0;
 }
 
-
-void menu()
-{
-    printf(" [0] TERMINAR (SALIR).\n");
-    printf(" [1] CREAR UNA PILA.\n");
-    printf(" [2] LLENAR TABLA DE LA CIMA DE LA PILA.\n");
-    printf(" [3] SACAR TABLA (POP) DE LA PILA.\n");
-    printf(" [4] LIBERAR MEMORIA DE LA PILA.\n");
-    printf("\n  Elija una opcion:  ");
-}
-
-void acciones(int accion,int simTip){
-    switch(accion){
-        case 0:
-            break;
-        case 1:
-            break;
-        case 2:
-            break;
-        case 3:
-            break;
-        case 4:
-            break;
-        default:
-            printf(" Esa opcion no existe\n\n");
-            break;
-    }
-}
-
-void autom(){
-    tipos();
-    simbolos();
-}
-
+/*
+ Fecha: 30/05/2020
+ Autor: Martínez Martínez Brayan Eduardo
+ Descripción: Función que realiza las pruebas con los tipos: crear una pila, insertar dos tablas,
+llenar con tres elementos la tabla de la cima e imprimirla, sacar la tabla de la pila y liberar la memora de la pila,
+ Modifico: Pachuca Cortes Santiago Emilio el 31/05/2020
+ Modificacion:
+ solucionar problemas con el paso de parametros que estaban mal colocados para las funciones de los tipos,
+ solucionar problemas con la asignacion de cadenas de caracteres para el nombre del tipo
+*/
 void tipos(){
     TSTACK *pila;
     TYPTAB *tabla1,*tabla2,*aux;
@@ -103,21 +54,21 @@ void tipos(){
 
     printf(" Llenar con tres elementos la tabla de la cima de la pila:\n");
     tipo1 = init_type(); // Reserva memoria para un tipo
-    tipo1->nombre[0] = "array";
+    strcpy(tipo1->nombre,"array");
     tipo1->tam=12;
     tipo1->tb.is_est=0;
     tipo1->tb.tipo.tipo=0;
     append_type(pila->top,tipo1); //Agrega al final de la tabla un nuevo tipo
     printf("... El primer tipo se ha agregado a la tabla de la cima de la pila.\n");
     tipo2 = init_type(); // Reserva memoria para un tipo
-    tipo2->nombre[0] = "array";
+    strcpy(tipo2->nombre,"array");
     tipo2->tam=48;
-    tipo1->tb.is_est=0;
-    tipo1->tb.tipo.tipo=2;
+    tipo2->tb.is_est=0;
+    tipo2->tb.tipo.tipo=2;
     append_type(pila->top,tipo2); //Agrega al final de la tabla un nuevo tipo
     printf("... El segundo tipo se ha agregado a la tabla de la cima de la pila.\n");
     tipo3 = init_type(); // Reserva memoria para un tipo
-    tipo3->nombre[0] = "array";
+    strcpy(tipo3->nombre,"array");
     tipo3->tam=240;
     tipo3->tb.is_est=0;
     tipo3->tb.tipo.tipo=3;
@@ -134,19 +85,30 @@ void tipos(){
 
     printf(" Liberar la memoria de la pila:\n");
     finish_typ_tab_stack(pila); // Libera la memoria para la pila
-    printf("... La memoria de la pila ha sido liberada.\n");
+    printf("... La memoria de la pila ha sido liberada.\n\n");
     
     finish_typ_tab(tabla2); // Libera memoria para una tabla de tipos
+    //printf("Si");
 }
 
+/*
+ Fecha: 30/05/2020
+ Autor: Martínez Martínez Brayan Eduardo
+ Descripción: Función que realiza las pruebas con los simbolos: crear una pila, insertar dos tablas,
+llenar con tres elementos la tabla de la cima e imprimirla, sacar la tabla de la pila y liberar la memora de la pila,
+ Modifico: Pachuca Cortes Santiago Emilio el 31/05/2020
+ Modificacion:
+ solucionar problemas con el paso de parametros que estaban mal colocados para las funciones de los simbolos,
+ solucionar problemas con la asignacion de cadenas de caracteres para el id del simbolo
+*/
 void simbolos(){
     SSTACK *pila;
     SYMTAB *tabla1,*tabla2,*aux;
     SYM *simb1,*simb2,*simb3;
-    printf("\n Pruebas con Simbolos.\n");
+    printf("\n\n Pruebas con Simbolos.\n");
     printf(" Crear una pila:\n");
     pila = init_sym_tab_stack(); // Reserva memoria para la pila
-    printf("... La pila de tablas de tipos ha sido creada.\n");
+    printf("... La pila de tablas de simbolos ha sido creada.\n");
     
     printf(" Insertar dos tablas a la pila:\n");
     tabla1 = init_sym_tab(); // Reserva memoria para una tabla de simbolos vacia
@@ -160,7 +122,7 @@ void simbolos(){
 
     printf(" Llenar con tres elementos la tabla de la cima de la pila:\n");
     simb1 = init_sym(); // Reserva memoria para un simbolo vacio
-    simb1->id[0] = "x";
+    strcpy(simb1->id,"x");
     simb1->dir=0;//Calcular
     simb1->tipo=0;
     simb1->var=0;
@@ -168,7 +130,7 @@ void simbolos(){
     append_sym(pila->top,simb1);//Agrega al final de la tabla un nuevo simbolo
     printf("... El primer simbolo se ha agregado a la tabla de la cima de la pila.\n");
     simb2 = init_sym(); // Reserva memoria para un simbolo vacio
-    simb2->id[0] = "y";
+    strcpy(simb2->id,"y");
     simb2->dir=0;//Calcular
     simb2->tipo=0;
     simb2->var=0;
@@ -176,7 +138,7 @@ void simbolos(){
     append_sym(pila->top,simb2);//Agrega al final de la tabla un nuevo simbolo
     printf("... El segundo simbolo se ha agregado a la tabla de la cima de la pila.\n");
     simb3 = init_sym(); // Reserva memoria para un simbolo vacio
-    simb3->id[0] = "z";
+    strcpy(simb3->id,"z");
     simb3->dir=0;//Calcular
     simb3->tipo=0;
     simb3->var=0;
@@ -196,5 +158,7 @@ void simbolos(){
     finish_sym_tab_stack(pila); // Libera la memoria para la pila
     printf("... La memoria de la pila ha sido liberada.\n");
     
+    //printf("%d",tabla2);
     finish_sym_tab(tabla2);// Libera memoria para una tabla de simbolos
+    //printf("Si\n\n");
 }
