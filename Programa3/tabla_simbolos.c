@@ -1,7 +1,16 @@
 #include<stdio.h>
+#include<stdlib.h>
 #include "tabla_simbolos.h"
 
-//Agrega al final de la tabla un nuevo simbolo
+/*
+ Fecha: 30/05/2020
+ Autor: Martínez Martínez Brayan Eduardo
+ Descripción: Agrega al final de la tabla de simbolos un nuevo simbolo
+ Modifico: Pachuca Cortes Santiago Emilio el 31/05/2020
+ Modificacion:
+solucionar el problema de como guardaba los simbolos, ya que estos no se estaban ingresando correctamente
+y mucha informacion se perdia, se cambio a que tail guarde al nuevo simbolo en vez de head
+*/
 void append_sym(SYMTAB *SS, SYM *S){
     if(SS->head == NULL)
      {
@@ -15,18 +24,37 @@ void append_sym(SYMTAB *SS, SYM *S){
      SS->num = SS->num+1;
 }
 
- // Deja vacia la tabla
+ /*
+ Fecha: 30/05/2020
+ Autor: Martínez Martínez Brayan Eduardo
+ Descripción: Deja vacia la tabla simbolos
+ Modifico: Pachuca Cortes Santiago Emilio el 31/05/2020
+ Modificacion:
+solucionar el problema en la condicion del while, pues antes se verificaba que SS fuera distinto de NULL,
+ahora se verifica que el head de SS sea distinto de NULL, ademas de apuntar a NULL al tail de SS y reiniciar
+en 0 el contador de elementos de la tabla
+*/
 void clear_sym_tab(SYMTAB *SS){
     SYM *S;
-    while(SS!=NULL){
+    while(SS->head!=NULL){
         S = SS->head;
         SS->head=SS->head->next;
         S->next=NULL;
-        finish_typ(S);
+        finish_sym(S);
     }
+    SS->tail=NULL;
+    SS->num=0;
 }
 
-// Ejecuta un pop sobre la pila de tablas de simbolos
+/*
+ Fecha: 30/05/2020
+ Autor: Martínez Martínez Brayan Eduardo
+ Descripción: Ejecuta un pop sobre la pila de tablas de simbolos
+ Modifico: Pachuca Cortes Santiago Emilio el 31/05/2020
+ Modificacion:
+solucionar el problema con el orden en el que se reasignaban los punteros de next y top, en el segundo if
+se agrego el return para que no causara problemas con las siguientes instrucciones
+*/
 SYMTAB *pop_st(SSTACK *SSS){
     SYMTAB *SS,*aux;
     if(SSS->top == NULL) /* pila vacía */
@@ -48,18 +76,33 @@ SYMTAB *pop_st(SSTACK *SSS){
     return SS;
 }
 
-// Ingresa una tabla a la pila de tablas de simbolos
+/*
+ Fecha: 30/05/2020
+ Autor: Martínez Martínez Brayan Eduardo
+ Descripción: Ingresa una tabla de simbolos a la pila de tablas de simbolos
+ Modifico: Pachuca Cortes Santiago Emilio el 31/05/2020
+ Modificacion:
+solucionar el problema con el orden en el que se reasignaban los punteros de top->next y top, ya que el push no
+se estaba realizando correctamente y los punteros apuntaban a otra direccion a la esperada
+*/
 void push_st (SSTACK *SSS, SYMTAB *SS){
     if(SSS->top == NULL)
     {
       SSS->top = SSS->tail = SS;
       return;
     }
-    SSS->tail->next = SS;
-    SSS->tail = SS;
+    SSS->top->next = SS;
+    SSS->top = SS;
 }
 
-// Reserva memoria para la pila
+/*
+ Fecha: 30/05/2020
+ Autor: Martínez Martínez Brayan Eduardo
+ Descripción: Reserva memoria para la pila de simbolos
+ Modifico: Pachuca Cortes Santiago Emilio el 31/05/2020
+ Modificacion:
+se agregaron las asignaciones para que el top y el tail de la pila apunten a null
+*/
 SSTACK *init_sym_tab_stack(){
     SSTACK *SSS;
     SSS = (SSTACK *)malloc(sizeof(SSTACK));
@@ -68,48 +111,96 @@ SSTACK *init_sym_tab_stack(){
     return SSS;
 }
 
- // Reserva memoria para una tabla de simbolos vacia
+/*
+ Fecha: 30/05/2020
+ Autor: Martínez Martínez Brayan Eduardo
+ Descripción: Reserva memoria para una tabla de simbolos vacia
+ Modifico: Pachuca Cortes Santiago Emilio el 31/05/2020
+ Modificacion:
+ se cambio la forma de asignar los nombres a los simbolos mediante un strcpy y se agregaron
+ las asignaciones para que el tanto el head, tail, la tabla de tipos asociada y el simbolo siguiente
+ sean NULL, ademas el contador de simbolos se inicializa en 0
+*/
 SYMTAB *init_sym_tab(){
     SYMTAB *SS;
     SS = (SYMTAB *)malloc(sizeof(SYMTAB));
     SS -> head = NULL;
     SS -> tail = NULL;
     SS -> num = 0;
+    SS -> tt = NULL;
     SS -> next = NULL;
     return SS;
 }
 
- 
-SYM *init_sym(){ // Reserva memoria para un simbolo vacio
+ /*
+ Fecha: 30/05/2020
+ Autor: Martínez Martínez Brayan Eduardo
+ Descripción: Reserva memoria para un simbolo vacio
+ Modifico: Pachuca Cortes Santiago Emilio el 31/05/2020
+ Modificacion:
+ se asigno a NULL el puntero del siguiente del simbolo creado
+*/
+SYM *init_sym(){
    SYM *S;
    S = (SYM *)malloc(sizeof(SYM));
    S -> next = NULL;
    return S;
 }
 
-void finish_sym_tab_stack(SSTACK *SSS){// Libera la memoria para la pila
+/*
+ Fecha: 30/05/2020
+ Autor: Martínez Martínez Brayan Eduardo
+ Descripción: Libera la memoria para la pila de simbolos
+ Modifico: Pachuca Cortes Santiago Emilio el 31/05/2020
+ Modificacion:
+ se cambio la condicion del while, antes era SSS!=NULL pero causaba problemas, 
+ se cambio a que el top de la pila fuera distinto de NULL para que terminara
+*/
+void finish_sym_tab_stack(SSTACK *SSS){
     SYMTAB *SS;
-    while(SSS!=NULL){
-        SS = pop_tt(SSS);
-        finish_typ_tab(SS);
+    while(SSS->top!=NULL){
+        SS = pop_st(SSS);
+        finish_sym_tab(SS);
     }
     free(SSS);
 }
 
-
-void finish_sym_tab(SYMTAB *SS){// Libera memoria para una tabla de simbolos
-    clear_type_tab(SS);
+/*
+ Fecha: 30/05/2020
+ Autor: Martínez Martínez Brayan Eduardo
+ Descripción: Libera memoria para una tabla de simbolos
+ Modifico: Pachuca Cortes Santiago Emilio el 31/05/2020
+ Modificacion:
+ se quito el codigo innecesario para que se reultilizara la funcion clear_sym_tab
+*/
+void finish_sym_tab(SYMTAB *SS){
+    clear_sym_tab(SS);
     free(SS);
 }
 
-
-void finish_sym (SYM *S){ // libera memoria para un simbolo vacio
+/*
+ Fecha: 30/05/2020
+ Autor: Martínez Martínez Brayan Eduardo
+ Descripción: libera memoria para un simbolo
+ Modifico: Pachuca Cortes Santiago Emilio el 31/05/2020
+ Modificacion:
+ se agrego la condicion de que S no fuera nulo para poder liberar la memoria
+*/
+void finish_sym (SYM *S){
     if(S!=NULL)
        free(S);
 }
 
-
-void print_tab(SYMTAB *SS){// Imprime en pantalla la tabla de simbolos
+/*
+ Fecha: 30/05/2020
+ Autor: Martínez Martínez Brayan Eduardo
+ Descripción: Imprime en pantalla la tabla de simbolos
+ Modifico: Pachuca Cortes Santiago Emilio el 31/05/2020
+ Modificacion:
+ se agrego un contador para poder imprimir la posicion de los simbolos
+*/
+void print_Stab(SYMTAB *SS){
+    int cont=0;
     SYM *S;
     int sim;
     printf("\n");
@@ -119,14 +210,15 @@ void print_tab(SYMTAB *SS){// Imprime en pantalla la tabla de simbolos
      return;
     }
     printf("\tTABLA DE SIMBOLOS:\n");
-    printf(" Pos    id        Dir        Tipo        Var      Args     Num\n");
+    printf(" Pos      id        Dir        Tipo        Var      Args     Num\n");
     S = SS->head;
     while(S!=NULL)
     {
       //imprimirSimbolo(S);
-      printf(" %d     %s        %d        %d          %d        %d      ",S->num,S->id,S->dir,S->tipo,S->var,S->args->arg,S->num);
+      printf(" %2d%8s        %3d         %3d          %d        %2d      %2d",cont,S->id,S->dir,S->tipo,S->var,0,0);
       printf("\n");
       S = S->next;
+      cont++;
     }
     printf("\n");
 }
