@@ -1,16 +1,21 @@
+#ifndef DATOS_H
+#define DATOS_H
+
 typedef struct args ARG;
+typedef struct type TYP;
+typedef struct type_tab TYPTAB;
 
 struct args{
     int arg;
-    ARG next;
+    ARG *next;
 };
 
 
-typedef struct args{
+typedef struct argum{
     ARG *head;
     ARG *tail;
     int num; // numero de elementos en la lista
-};
+}ARGUMS;
 
 
 typedef struct sym SYM;
@@ -20,7 +25,7 @@ struct sym{
     int dir; // direccion para la variable
     int tipo; // tipo como indice a la tabla de tipos
     int var; // tipo de variable
-    ARG *args; // Lista de argumentos
+    ARGUMS *args; // Lista de argumentos
     int num; // numero de argumentos
     SYM *next; // apuntador al siguiente simbolo
 };
@@ -32,6 +37,7 @@ struct sym_tab{
     SYM *head;
     SYM *tail;
     int num; //Numero de elementos en la tabla
+    TYPTAB *tt;
     SYMTAB *next; // apuntador a la tabla siguiente
 };
 
@@ -45,14 +51,12 @@ typedef struct sym_stack{
 typedef struct tipobase{
     int is_est; // 1: si es estructura 0: si es tipo simple -1: si no tiene tipo base
     union{
-    TYPTAB *est;
+    SYMTAB *SS;
     int tipo;
     }tipo;
 }TB;
 
-
-typedef struct type TYP;
-
+//TYP
 struct type{
     int id;
     char nombre[12];
@@ -61,8 +65,6 @@ struct type{
     TYP *next; //apuntador al siguiente tipo en la tabla de tipos
 };
 
-
-typedef struct type_tab TYPTAB;
 
 struct type_tab{
     TYP *head;
@@ -78,3 +80,4 @@ typedef struct typ_stack{
 }TSTACK;
 
 
+#endif
