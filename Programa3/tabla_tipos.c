@@ -10,7 +10,7 @@
  Modifico: Pachuca Cortes Santiago Emilio el 31/05/2020
  Modificacion:
 solucionar el problema de como guardaba los tipos, ya que estos no se estaban ingresando correctamente
-y mucha informacion se perdia, se cambio a que tail guardaria al nuevo tipo en vez de head
+y mucha informacion se perdia, se cambio a que tail guarde al nuevo tipo en vez de head
 */
 void append_type(TYPTAB *tt, TYP *t){
     if(tt->head == NULL)
@@ -101,7 +101,7 @@ void push_tt(TSTACK *ttt, TYPTAB *tt){
 /*
  Fecha: 30/05/2020
  Autor: Martínez Martínez Brayan Eduardo
- Descripción: Reserva memoria para la pila de tipos
+ Descripción: Reserva memoria para la pila de tipos vacia
  Modifico: Pachuca Cortes Santiago Emilio el 31/05/2020
  Modificacion:
 se agregaron las asignaciones para que el top y el tail de la pila apunten a null
@@ -121,7 +121,8 @@ TSTACK *init_type_tab_stack(){
  Modifico: Pachuca Cortes Santiago Emilio el 31/05/2020
  Modificacion:
  se cambio la forma de asignar los nombres a los tipos mediante un strcpy y se agregaron
- las asignaciones para que el 
+ las asignaciones para que el tanto el head, tail, la tabla de simbolos asociada y el tipo siguiente
+ sean NULL, ademas el contador de tipos se inicializa en 0
 */
 TYPTAB *init_type_tab(){
     TYPTAB *tt;
@@ -155,7 +156,7 @@ TYPTAB *init_type_tab(){
 /*
  Fecha: 30/05/2020
  Autor: Martínez Martínez Brayan Eduardo
- Descripción: Reserva memoria para un tipo
+ Descripción: Reserva memoria para un tipo vacio
  Modifico: Pachuca Cortes Santiago Emilio el 31/05/2020
  Modificacion:
  se asigno a NULL el puntero del siguiente del tipo creado
@@ -170,10 +171,10 @@ TYP *init_type(){
 /*
  Fecha: 30/05/2020
  Autor: Martínez Martínez Brayan Eduardo
- Descripción: Libera la memoria para la pila
+ Descripción: Libera la memoria para la pila de tipos
  Modifico: Pachuca Cortes Santiago Emilio el 31/05/2020
  Modificacion:
- se cambio la condicion del while, antes era tail!=NULL pero causaba problemas, 
+ se cambio la condicion del while, antes era ttt!=NULL pero causaba problemas, 
  se cambio a que el tail de la pila fuera distinto de NULL para que terminara
 */
 void finish_typ_tab_stack(TSTACK *ttt){
