@@ -14,7 +14,9 @@ TYP *init_type(); // Reserva memoria para un tipo
 
 void finish_typ_tab_stack(TSTACK *ttt); // Libera la memoria para la pila
 void finish_typ_tab(TYPTAB *tt); // Libera memoria para una tabla de tipos
-void finish_typ(TYP *t) ; // libera memoria para un tipo
+void finish_typ(TYP *t); // libera memoria para un tipo
 void print_Ttab(TYPTAB *tt); // Imprime en pantalla la tabla de tipos
 
+TYP *search_typ_tab_stack(TSTACK *TTT,char *nombre); // Busca un tipo en la pila de tablas de tipos
+TYP *search_typ_tab(TYPTAB *TT,char *nombre); // Busca un tipo en una tabla de tipos
 #endif
