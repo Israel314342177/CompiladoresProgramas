@@ -1,5 +1,6 @@
 #include<stdio.h>
 #include<stdlib.h>
+#include<string.h>
 #include "tabla_simbolos.h"
 
 /*
@@ -223,6 +224,54 @@ void print_Stab(SYMTAB *SS){
     printf("\n");
 }
 
+
+ /*
+ Fecha: 02/06/2020
+ Autor: Martínez Martínez Brayan Eduardo
+ Descripción: Busca un simbolo en la pila de tablas de simbolos
+ Modifico: Pachuca Cortes Santiago Emilio el 03/06/2020
+ Modificacion:
+ se quitaron instrucciones innecesarias para asignar la tabla en la que se empezara
+ la busqueda, tambien se agregaron las asignaciones a NULL cuando no se encuentra un simbolo
+*/
+SYM *search_sym_tab_stack(SSTACK *SSS,char *id){
+    SYMTAB *auxSymTab;
+    SYM *auxSym;
+    if(SSS->top == NULL) /* pila vacía */
+        return NULL;
+
+    auxSymTab = SSS->tail;
+    while(auxSymTab!=NULL){
+        auxSym = search_sym_tab(auxSymTab,id);
+        if(auxSym!=NULL)
+            return auxSym;
+        auxSymTab = auxSymTab->next;
+    }
+    return NULL;
+}
+
+
+ /*
+ Fecha: 02/06/2020
+ Autor: Martínez Martínez Brayan Eduardo
+ Descripción: Busca un simbolo en una tabla de simbolos
+ Modifico: Pachuca Cortes Santiago Emilio el 03/06/2020
+ Modificacion:
+ se quitaron instrucciones innecesarias para asignar la tabla en la que se empezara
+ la busqueda, tambien se agregaron las asignaciones a NULL cuando no se encuentra un simbolo
+*/
+SYM *search_sym_tab(SYMTAB *SS,char *id){
+    SYM *auxSym;
+    if(SS->head == NULL) /* tabla vacía */
+        return NULL;
+
+    auxSym = SS->head;
+    while(auxSym!=NULL)
+      if(strcmp(id,auxSym->id))
+            return auxSym;
+      auxSym = auxSym->next;
+    return NULL;
+}
 /*struct sym{
     char id [33]; // identificador
     int dir; // direccion para la variable
