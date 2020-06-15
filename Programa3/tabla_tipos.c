@@ -245,3 +245,61 @@ void print_Ttab(TYPTAB *tt){
     }
     printf("\n");
 }
+
+
+ /*
+ Fecha: 02/06/2020
+ Autor: Martínez Martínez Brayan Eduardo
+ Descripción: Busca un simbolo en la pila de tablas de tipos
+ Modifico: Pachuca Cortes Santiago Emilio el 03/06/2020
+ Modificacion:
+ se quitaron instrucciones innecesarias para asignar la tabla en la que se empezara
+ la busqueda, tambien se agregaron las asignaciones a NULL cuando no se encuentra un tipo
+*/
+TYP *search_typ_tab_stack(TSTACK *TTT,char *nombre){
+    TYPTAB *auxTypTab;
+    TYP *auxTyp;
+    if(TTT->top == NULL) /* pila vacía */
+        return NULL;
+
+    auxTypTab = TTT->tail;
+    while(auxTypTab!=NULL){
+        auxTyp = search_typ_tab(auxTypTab,nombre);
+        if(auxTyp!=NULL)
+            return auxTyp;
+        auxTypTab = auxTypTab->next;
+    }
+    return NULL;
+}
+
+
+ /*
+ Fecha: 02/06/2020
+ Autor: Martínez Martínez Brayan Eduardo
+ Descripción: Busca un tipo en una tabla de tipos
+ Modifico: Pachuca Cortes Santiago Emilio el 03/06/2020
+ Modificacion:
+ se quitaron instrucciones innecesarias para asignar la tabla en la que se empezara
+ la busqueda, tambien se agregaron las asignaciones a NULL cuando no se encuentra un tipo
+*/
+TYP *search_typ_tab(TYPTAB *TT,char *nombre){
+    TYP *auxTyp;
+    if(TT->head == NULL) /* tabla vacía */
+        return NULL;
+
+    auxTyp = TT->head;
+    while(auxTyp!=NULL)
+      if(strcmp(nombre,auxTyp->nombre))
+            return auxTyp;
+      auxTyp = auxTyp->next;
+    return NULL;
+}
+/*
+struct type{
+    int id;
+    char nombre[12];
+    TB tb;
+    int tam;
+    TYP *next; //apuntador al siguiente tipo en la tabla de tipos
+};
+*/
