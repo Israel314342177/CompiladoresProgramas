@@ -17,4 +17,6 @@ void finish_sym_tab(SYMTAB *SS); // Libera memoria para una tabla de simbolos
 void finish_sym(SYM *S); // libera memoria para un simbolo vacio
 void print_Stab(SYMTAB *SS); // Imprime en pantalla la tabla de simbolos
 
+SYM *search_sym_tab_stack(SSTACK *SSS,char *id); // Busca un simbolo en la pila de tablas de simbolos
+SYM *search_sym_tab(SYMTAB *SS,char *id); // Busca un simbolo en una tabla de simbolos
 #endif
