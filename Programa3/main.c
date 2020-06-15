@@ -35,7 +35,7 @@ llenar con tres elementos la tabla de la cima e imprimirla, sacar la tabla de la
 void tipos(){
     TSTACK *pila;
     TYPTAB *tabla1,*tabla2,*aux;
-    TYP *tipo1,*tipo2,*tipo3;
+    TYP *tipo1,*tipo2,*tipo3,*tipo;
     printf("\n Pruebas con Tipos.\n");
     
     printf(" Crear una pila:\n");
@@ -78,6 +78,15 @@ void tipos(){
     printf(" Tabla de tipos de la cima de la pila:\n");
     print_Ttab(pila->top); // Imprime en pantalla la tabla de tipos
 
+    printf(" Buscar un tipo en la pila de tipos (buscar 'float').\n");
+    tipo = search_typ_tab_stack(pila,"float");
+    if(tipo!=NULL){
+        printf(" El tipo SI se encuentra en la pila de tipos.\n\n");
+        finish_typ(tipo);
+    }
+    else
+        printf(" El tipo NO se encuentra en la pila de tipos.");
+    
     printf(" Sacar la tabla de la pila.\n");
     aux = pop_tt(pila); // Ejecuta un pop sobre la pila de tablas de tipos
     printf("... La tabla ha sido extraida de la pila.\n");
@@ -104,7 +113,7 @@ llenar con tres elementos la tabla de la cima e imprimirla, sacar la tabla de la
 void simbolos(){
     SSTACK *pila;
     SYMTAB *tabla1,*tabla2,*aux;
-    SYM *simb1,*simb2,*simb3;
+    SYM *simb1,*simb2,*simb3,*simb;
     printf("\n\n Pruebas con Simbolos.\n");
     printf(" Crear una pila:\n");
     pila = init_sym_tab_stack(); // Reserva memoria para la pila
@@ -149,6 +158,15 @@ void simbolos(){
     printf(" Tabla de simbolos de la cima de la pila:\n");
     print_Stab(pila->top); // Imprime en pantalla la tabla de simbolos
 
+    printf(" Buscar un simbolo en la pila de simbolos (Buscar 'z').\n");
+    simb = search_sym_tab_stack(pila,"z");
+    if(simb!=NULL){
+        printf(" El simbolo SI se encuentra en la pila de simbolos.\n\n");
+        finish_sym (simb);
+    }
+    else
+        printf(" El simbolo NO se encuentra en la pila de simbolos.");
+
     printf(" Sacar la tabla de la pila.\n");
     aux = pop_st(pila); // Ejecuta un pop sobre la pila de tablas de simbolos
     printf("... La tabla ha sido extraida de la pila.\n");
@@ -160,5 +178,5 @@ void simbolos(){
     
     //printf("%d",tabla2);
     finish_sym_tab(tabla2);// Libera memoria para una tabla de simbolos
-    //printf("Si\n\n");
+    //printf("***Si\n");
 }
