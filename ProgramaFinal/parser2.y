@@ -9,6 +9,12 @@ int tipo;
 int dir;
 extern int yylex();
 void yyerror(char *s);
+SSTACK *STS;
+STS = init_sym_tab_stack();
+TSTACK *STT;
+STT = init_type_tab_stack();
+listD *Sdir;
+Sdir = nuevaListaD();
 %}
 
 %union{
@@ -17,7 +23,8 @@ void yyerror(char *s);
     char cadena[100];
     char caracter[1];
     int num;
-    list lista_tipos;
+    list *lista_tipos;
+    dt *type_dir;
 }
 
 %token<id>  ID
@@ -44,7 +51,8 @@ void yyerror(char *s);
 
 
 %type<lista_tipos> lista_arg argumentos parametros lista_param
-
+%type<type_dir> variable expresion arreglo relacional tipo tipo_registro tipo_arreglo
+%type<num> base
 
 %start programa
 /*
@@ -57,16 +65,12 @@ Descripción: Gramática
 
 programa : declaraciones funciones  {
 //Tabla de simbolos
-SSTACK *STS;
 SYMTAB *newTS;
-STS = init_sym_tab_stack();
 newTS = init_sym_tab();
 push_st(STS,newTS);
 
 //Tabla de tipos
-TSTACK *STT;
 TYPTAB *newTT;
-STT = init_type_tab_stack();
 newTT = init_type_tab();
 push_tt(STT,newTT);
 
@@ -77,150 +81,166 @@ prog = func;
 };
 
 
-declaraciones : tipo lista_var SEMICOLON declaraciones {tipo = $$1.type}
-            | tipo_registro lista_var SEMICOLON declaraciones {tipo = $$1.type}
+declaraciones : tipo lista_var SEMICOLON declaraciones {tipo = $1.type;}
+            | tipo_registro lista_var SEMICOLON declaraciones {tipo = $1.type;}
             | ;
 
 
 tipo_registro : STRUCT START declaraciones END 
 {
-STS.push(newTS())
-STT.push(newTT())
-SDir.push(dir)
-dir = 0
-SymTab = STS.pop()
-SymTab.typeTab = STT.pop()
-tam = getTam(SymTab)
-dir = SDir.pop()
-tipo_registro.type = STT.getTop().insert(“struct”, tam, SymTab)
+//Tabla de simbolos
+SYMTAB *newTS;
+newTS = init_sym_tab();
+push_st(STS,newTS);
+
+//Tabla de tipos
+TYPTAB *newTT;
+newTT = init_type_tab();
+push_tt(STT,newTT);
+
+dt *dirTR;
+dirTR = init_dt();
+dirTR -> dir = dir;
+push_dir(SDir,dirTR);
+dir = 0;
+SYMTAB *SymTab;
+SymTab = pop_st(STS);
+SymTab->tt = pop_tt(STT);
+tam = sizeof(SymTab);
+dir = pop_dir(SDir)->dir;
+TYP *newTipo;
+newTipo = init_sym();
+newTipo-> tam = tam;
+strcpy(newTipo->nombre,"struct");
+newTipo->tb->is_est = 0;
+newTipo->tb->tipo->SS = SymTab;
+$$.type = append_type(STT->top,newTipo);
 };
 
 
 tipo : base tipo_arreglo
 {
-baseGBL = base.base
-tipo.type = tipo_arreglo.type
+base = $1.base;
+$$.type = $2.type;
 };
 
 
-base : INT {base.base = STT.getTop().getType(“ent”)}
-    | FLOAT {base.base = STT.getTop().getType(“real”)}
-    | DOUBLE {base.base = STT.getTop().getType(“dreal”)}
-    | CHAR {base.base = STT.getTop().getType(“car”)}
-    | VOID {base.base = STT.getTop().getType(“sin”)};
+base : INT {$$.base = 0;}
+    | FLOAT {$$.base = 0;}
+    | DOUBLE {$$.base = 0;}
+    | CHAR {$$.base = 0;}
+    | VOID {$$.base = -1;};
 
 
 tipo_arreglo : LSQBRACK NUM RSQBRACK tipo_arreglo
 {
-Si num.type = ent Entonces
-     Si num.dir > 0 Entonces
-            tipo_arreglo.type = STT.getTop().insert(’array’,num, tipo_arreglo1.tipo)
-     Sino
-            error(“El indice debe ser mayor a 0”)
-     Fin Si
-Sino
-     error(“El indice debe de ser entero”)
-Fin Si
+if(sizeof($2)==sizeof(int)){
+    if($2.dir > 0)
+        $$.type = STT.getTop().insert(’array’,num, $1.tipo)
+     else
+        printf("El indice debe ser mayor a 0");
+}
+else
+     printf("El indice debe de ser entero");
 }
 | {tipo_arreglo.type = baseGBL};
 
+
 lista_var : lista_var COMMA ID
 {
-Si no STS.getTop().existe(id) Entonces
-    STS.getTop().insert(id, typeGBL, dir, ’var’, null, null )
+if(!STS.getTop().existe($3))
+    STS.getTop().insert($3, typeGBL, dir, ’var’, null, null )
             dir = dir + STT.getTop().getTam(typeGBL)
-Sino
-    error(“El id ya existe”)
-Fin Si
+else
+    printf("El id ya existe");
 }
 | ID
 {
-Si no STS.getTop().existe(id) Entonces
-    STS.getTop().insert(id, typeGBL, dir, ’var’, null, null )
+if(!STS.getTop().existe($1))
+    STS.getTop().insert($1, typeGBL, dir, ’var’, null, null )
     dir = dir + STT.getTop().getTam(typeGBL)
-Sino
-    error(“El id ya existe”)
-Fin Si
+else
+    printf("El id ya existe");
 };
 
 
 funciones : DEF tipo ID LPAR argumentos RPAR START declaraciones sentencias END funciones
 {
-Si no STS.getGlobal().existe(id) Entonces
+if(!STS.getGlobal().existe($3)){
     STS.push(newTS())
     STT.push(newTT())
     SDir.push(dir)
-    dir = 0
+    dir = 0;
     listaRET = newListRet()
-   Si cmpRet(lista retorno, tipo.type) Entonces
+   if(cmpRet(lista_RET,$2.type)){
        L = newLabel()
        backpatch(sentencias.nextlist, L)
        genCode(label L)
        STS.pop()
        STT.pop()
-   Sino
-       error(“El valor no corresponde al tipo de la función”)
-   Fin Si
-Sino
-   error(“El id ya fue declarado”)
-Fin Si
+   }
+   else
+       printf("El valor no corresponde al tipo de la función");
+}
+else
+   printf("El id ya fue declarado");
 }
 | ;
 
 
 argumentos : lista_arg
 {
-argumentos.lista = lista_arg.lista
-argumentos.num = lista_arg.num
+$$.lista = $1.lista;
+$$.num = $1.num;
 }
 | VOID
 {
-argumentos.lista = NULO
-argumentos.num = 0
+$$.lista = NULL;
+$$.num = 0;
 };
 
 
 lista_arg : lista_arg COMMA arg
 {
-lista_arg.lista = lista_arg.lista
-lista_arg.lista.append(arg.type)
-lista_arg.num = lista_arg1.num + 1
+$$.lista = $1.lista;
+$$.lista.append(arg.type);
+$$.num = $11.num + 1;
 }
 | arg
 {
-lista_arg.lista = newList()
-lista_arg.lista.append(arg.type)
-lista_arg.num = 1
+$$.lista = newList()
+$$.lista.append($3.type)
+$$.num = 1
 };
 
 
 arg : tipo_arg ID
 {
-Si no STS.getTop().existe(id) Entonces
-      STS.getTop().append(id, tipo.type, dir, ’arg’, NULO, NULO)
-      dir = dir + STT.getTop().getTam(tipo.type)
-      arg.type = tipo.type
-Sino
-     error(“El identificador ya fue declarado”)
-Fin Si
+if(!STS.getTop().existe($2)){
+    STS.getTop().append(id, $1.type, dir, ’arg’, NULO, NULO)
+    dir = dir + STT.getTop().getTam($1.type)
+    $$.type = $1.type
+}
+else
+     printf("El identificador ya fue declarado");
 };
 
 
 tipo_arg : base param_arr
 {
-baseGBL = base.base
-tipo_arg.type = param_arr.type
+baseGBL = $1.base
+$$.type = $2.type
 };
 
 
-param_arr : LSQBRACK RSQBRACK param_arr {param_arr.type = STT.getTop().insert(’array), 0, param_arr1.tipo)}
-| {param arr.type = baseGBL};
+param_arr : LSQBRACK RSQBRACK param_arr {$$.type = STT.getTop().insert(’array), 0, $1.tipo)}
+| {$$.type = baseGBL};
 
 
 sentencias : sentencias sentencia
 {
 L = newLabel()
-backpatch(sentencias1.nextlist, L)
+backpatch($1.nextlist, L)
 genCode(label L)
 } | ;
 
@@ -228,8 +248,8 @@ genCode(label L)
 sentencia : IF e_bool THEN sentencia END %prec SIT
 {
 L = newLabel()
-backpatch(e bool.truelist, L)
-sentencia.nextlist =combinar(e bool.falselist, Sentencia1.nextlist)
+backpatch($2.truelist, L)
+$$.nextlist =combinar($2.falselist, $4.nextlist)
 genCode(label L)
 }
 
@@ -237,11 +257,11 @@ genCode(label L)
 {
 L1 = newLabel()
 L2 = newLabel()
-backpatch(e bool.truelist, L1)
-backpatch(e bool.falselist, L2)
-sentencia.nextlist = combinar(sentencia1.nextlist, sentencia2.nextlist)
+backpatch($2.truelist, L1)
+backpatch($2.falselist, L2)
+$$.nextlist = combinar($4.nextlist,$6.nextlist)
 genCode(label L1)
-genCode(’goto’ sentencia1.nextlist[0])
+genCode(’goto’ $4.nextlist[0])
 genCode(label L2)
 }
 
@@ -249,136 +269,136 @@ genCode(label L2)
 {
 L1 = newLabel()
 L2 = newLabel()
-backpatch(sentencia1.nextlist, L1)
-backpatch(e bool.truelist, L2)
-sentencia.nextlist = e bool.falselist
+backpatch($4.nextlist, L1)
+backpatch($2.truelist, L2)
+$$.nextlist = $2.falselist
 genCode(label L1)
 genCode(label L2)
-genCode(’goto’ sentencia1.nextlist[0])
+genCode(’goto’ $4.nextlist[0])
 }
 
 | DO sentencia WHILE e_bool SEMICOLON
 {
 L = newLabel()
 genCode(”label” L)
-batckbatch(sentencia1.nextlist, L)
+batckbatch($2.nextlist, L)
 }
 
 | SWITCH LPAR variable RPAR DO casos predeterminado END
 {
-prueba = combinar(casos.prueba,predeterminado.prueba)
-backpatch(casos.nextlist, L2)
-sustituir(”??”, variable.dir, prueba)
+prueba = combinar($6.prueba,$7.prueba)
+backpatch($6.nextlist, L2)
+sustituir(”??”, $3.dir, prueba)
 }
 
 | variable ASSIGN expresion SEMICOLON
 {
-dir = reducir(expresion.dir, epresion.type, variable.type)
-Si variable.code est = true Entonces
-    genCode(variable.base’[’variable.des’]’ ’=’ dir)
-Sino
-    genCode(variable.dir ’=’ dir)
-Fin Si
+dir = reducir($3.dir,$3.type,$1.type)
+if($1.code_est = true)
+    genCode($1.base'['$1.des']' '=' dir)
+else
+    genCode($1.dir ’=’ dir)
 }
 
 | PRINT expresion SEMICOLON
-{gen(”write” expresion.dir)}
+{gen(”write” $2.dir)}
 
 | SCAN variable SEMICOLON
-{gen(”read” variable.dir)}
+{gen(”read” $2.dir)}
 
 | RETURN SEMICOLON
-{genCode(”return”)}
+{genCode("return")}
 
 | RETURN expresion SEMICOLON
 {
 index = newIndex()
-sentencia.nextlist = newIndexList(index)
-genCode(”goto” index)
+$$.nextlist = newIndexList(index)
+genCode("goto" index)
 }
 
 | BREAK SEMICOLON
 {
 index = newIndex()
-sentencia.nextlist = newIndexList(index)
+$$.nextlist = newIndexList(index)
 genCode(”goto” index)
 }
 
-| START sentencias END {sentencia.nextlist = sentencia1.nextlist};
+| START sentencias END {$$.nextlist = $2.nextlist};
 
 
 casos : CASE NUM COLON sentencia casos
 {
-casos.nextlist =combinar(casos.nextlist, sentencia1.nextlist)
+$$.nextlist =combinar($5.nextlist, $4.nextlist)
 L = newLabel()
 /*Indica el inicio del código para la sentencia*/
-genCode(”label” L)
-casos.prueba = casos1.prueba
-casos.prueba.append(if ”??” ”==” num.dir ”goto” L )
+genCode("label" L)
+$$.prueba = $5.prueba
+$$.prueba.append(if "??" "==" $2.dir "goto" L )
 }
 | CASE NUM COLON sentencia
 {
-casos.prueba = newCode()
+$$.prueba = newCode()
 L = newLabel()
 /*Indica el inicio del c´odigo para la sentencia*/
-genCode(”label” L)
-casos.prueba.append(if ”??” ”==” num.dir ”goto” L )
-casos.nextlist = sentencia.nextlist
+genCode("label" L)
+$$.prueba.append(if "??" "==" $2.dir "goto" L)
+$$.nextlist = $4.nextlist
 };
 
 
 predeterminado : PRED COLON sentencia
 {
-predeterminado.prueba = newCode()
+$$.prueba = newCode()
 L = newLabel()
 /*Indica el inicio del código para la sentencia*/
-genCode(”label” L)
-predeterminado.prueba.append(”goto” L )
+genCode("label" L)
+$$.prueba.append("goto" L)
 }
-| {pretederminado.prueba = NULO};
+| {$$.prueba = NULO};
 
 
 e_bool : e_bool OR e_bool %prec SIT
 {
 L = newLabel()
-backpatch(e_bool1.falselist, L)
-e_bool.truelist = combinar(e_bool1.truelist,e_bool2.truelist )
-e_bool.falselist = e_bool2.falselist
+backpatch($1.falselist, L)
+$$.truelist = combinar($1.truelist,$2.truelist)
+$$.falselist = $3.falselist
 genCode(label L)
 }
+
 | e_bool AND e_bool
 {
 L = newLabel()
-backpatch(e_bool1.truelist, L)
-e_bool.truelist = e_bool1.truelist
-e_bool.falselist = combinar(e_bool1.falselist,e_bool2.falselist)
+backpatch($1.truelist, L)
+$$.truelist = $1.truelist
+$$.falselist = combinar($1.falselist,$3.falselist)
 genCode(label L)
 }
 
 | NOT e_bool
 {
-e_bool.truelist = e_bool1.falselist
-e_bool.falselist = e_bool.truelist
+$$.truelist = $2.falselist
+$$.falselist = $2.truelist
 }
 
 | relacional
 {
-e_bool.truelist = relacional op.truelist
-e_bool.falselist = relacional op.falselist
+$$.truelist = $1.truelist
+$$.falselist = $1.falselist
 }
 
 | TRUE
 {
 index0 = newIndex()
-e_bool.truelist = newIndexList(index0)
-genCode(’goto’ index0)
+$$.truelist = newIndexList(index0)
+genCode('goto' index0)
 }
 
 | FALSE
 {
 index0 = newIndex()
-e_bool.falselist = newIndexList(index0)
-genCode(’goto’ index0)
+$$.falselist = newIndexList(index0)
+genCode('goto' index0)
 };
 
 
@@ -386,277 +406,281 @@ relacional : relacional GREATER relacional
 {
 index0 = newIndex()
 index1 = newIndex()
-relacional.truelist = newIndexList(index0)
-relacional.falselist = newIndexList(index1)
-genCode(’if’ relacional1.dir > relacional2 ’goto’ index0)
-genCode(’goto’ index1)
+$$.truelist = newIndexList(index0)
+$$.falselist = newIndexList(index1)
+genCode('if' $1.dir > $3 'goto' index0)
+genCode('goto' index1)
 }
 
 | relacional LESS relacional
 {
 index0 = newIndex()
 index1 = newIndex()
-relacional.truelist = newIndexList(index0)
-relacional.falselist = newIndexList(index1)
-genCode(’if’ relacional1.dir < relacional2 ’goto’ index0)
-genCode(’goto’ index1)
+$$.truelist = newIndexList(index0)
+$$.falselist = newIndexList(index1)
+genCode('if' $1.dir < $3 'goto' index0)
+genCode('goto' index1)
 }
 
 | relacional LT relacional
 {
 index0 = newIndex()
 index1 = newIndex()
-relacional.truelist = newIndexList(index0)
-relacional.falselist = newIndexList(index1)
-genCode(’if’ relacional1.dir <= relacional2 ’goto’ index0)
-genCode(’goto’ index1)
+$$.truelist = newIndexList(index0)
+$$.falselist = newIndexList(index1)
+genCode('if' $1.dir <= $3 'goto' index0)
+genCode('goto' index1)
 }
 
 | relacional GT relacional
 {
 index0 = newIndex()
 index1 = newIndex()
-relacional.truelist = newIndexList(index0)
-relacional.falselist = newIndexList(index1)
-genCode(’if’ relacional1.dir >= relacional2 ’goto’ index0)
-genCode(’goto’ index1)
+$$.truelist = newIndexList(index0)
+$$.falselist = newIndexList(index1)
+genCode('if' $1.dir >= $3 'goto' index0)
+genCode('goto' index1)
 }
 
 | relacional NOTEQUAL relacional
 {
 index0 = newIndex()
 index1 = newIndex()
-relacional.truelist = newIndexList(index0)
-relacional.falselist = newIndexList(index1)
-genCode(’if’ relacional1.dir <> relacional2 ’goto’ index0)
-genCode(’goto’ index1)
+$$.truelist = newIndexList(index0)
+$$.falselist = newIndexList(index1)
+genCode('if' $1.dir <> $3 'goto' index0)
+genCode('goto' index1)
 }
 
 | relacional EQUAL relacional
 {
 index0 = newIndex()
 index1 = newIndex()
-relacional.truelist = newIndexList(index0)
-relacional.falselist = newIndexList(index1)
-genCode(’if’ relacional1.dir = relacional2 ’goto’ index0)
-genCode(’goto’ index1)
+$$.truelist = newIndexList(index0)
+$$.falselist = newIndexList(index1)
+genCode('if'$1.dir = $3 'goto' index0)
+genCode('goto' index1)
 }
 
 | expresion
 {
-relacional.dir = expresion.dir
-relacional.tipo = expresion.tipo
+$$.dir = $1.dir;
+$$.tipo = $1.tipo;
 };
 
 
 expresion : expresion PLUS expresion %prec SIT
 {
-expresion.type = max(expresion1.type, expresion2.type)
-expresion.dir = newTemp()
-dir1 = ampliar(expresion1.dir, expresion1.type,expresion.type)
-dir2 = ampliar(expresion2.dir, expresion2.type,expresion.type)
-getCode(expresion.dir ’=’ dir1 ’+’ dir2)
+$$.type = max($1.type, $3.type)
+$$.dir = newTemp()
+dir1 = ampliar($1.dir,$1.type,$3.type)
+dir2 = ampliar($3.dir,$3.type,$1.type)
+getCode($$.dir ’=’ dir1 ’+’ dir2)
 }
 
 | expresion MINUS expresion
 {
-expresion.type = max(expresion1.type, expresion2.type)
-expresion.dir = newTemp()
-dir1 = ampliar(expresion1.dir, epxresion1.type,expresion.type)
-dir2 = ampliar(expresion2.dir, epxresion2.type,expresion.type)
-getCode(expresion.dir ’=’ dir1 ’-’ dir2)
+$$.type = max($1.type,$3.type)
+$$.dir = newTemp()
+dir1 = ampliar($1.dir,$1.type,$3.type)
+dir2 = ampliar($3.dir,$3.type,$1.type)
+getCode($$.dir ’=’ dir1 ’-’ dir2)
 }
 
 | expresion MUL expresion
 {
-expresion.type = max(expresion1.type, expresion2.type)
-expresion.dir = newTemp()
-dir1 = ampliar(expresion1.dir, epxresion1.type,expresion.type)
-dir2 = ampliar(expresion2.dir, epxresion2.type,expresion.type)
-getCode(expresion.dir ’=’ dir1 ’*’ dir2)
+$$.type = max($1.type,$3.type)
+$$.dir = newTemp()
+dir1 = ampliar($1.dir, $1.type,$3.type)
+dir2 = ampliar($3.dir, $3.type,$1.type)
+getCode($$.dir ’=’ dir1 ’*’ dir2)
 }
 
 | expresion DIV expresion
 {
-expresion.type = max(expresion1.type, expresion2.type)
-expresion.dir = newTemp()
-dir1 = ampliar(expresion1.dir, epxresion1.type,expresion.type)
-dir2 = ampliar(expresion2.dir, epxresion2.type,expresion.type)
-getCode(expresion.dir ’=’ dir1 ’/’ dir2)
+$$.type = max($1.type,$3.type)
+$$.dir = newTemp()
+dir1 = ampliar($1.dir, $1.type,$3.type)
+dir2 = ampliar($3.dir, $3.type,$1.type)
+getCode($$.dir ’=’ dir1 ’/’ dir2)
 }
 
 | expresion MOD expresion
 {
-Si expresion1.type = entero and expresion2.type = entero Entonces
-    expresion.type = max(expresion1.type,expresion2.type)
-    expresion.dir = newTemp()
-    dir1 = ampliar(expresion1.dir, epxresion1.type,expresion.type)
-    dir2 = ampliar(expresion2.dir, epxresion2.type,expresion.type)
-    getCode(expresion.dir ’=’ dir1 ’+’ dir2)
-Sino
-   error(“No se puede obtener el modulo si los operandos no son enteros”)
-Fin Si
+if($1.type = entero && $3.type = entero){
+    $$.type = max($1.type,$3.type);
+    $$.dir = newTemp();
+    dir1 = ampliar($1.dir, $1.type,$3.type);
+    dir2 = ampliar($3.dir, $3.type,$1.type);
+    getCode($$.dir ’=’ dir1 ’+’ dir2);
+}
+else
+   printf("No se puede obtener el modulo si los operandos no son enteros");
 }
 
 | LPAR expresion RPAR
 {
-expresion.type = expresion1.type
-expresion.dir = expresion1.dir
+$$.type = $2.type;
+$$.dir = $2.dir;
 }
 
 | variable
 {
-expresion.type = variable.type
-expresion.dir = variable.dir
+$$.type = $1.type;
+$$.dir = $1.dir;
 }
 
 | NUM
 {
-expresion.type = num.type
-expresion.dir = num.dir
+$$.type = $1.type;
+$$.dir = $1.dir;
 }
 
 | STRING
 {
-expresion.type =’string’
-Si TablaCadenas.existe(cadena) Entonces
-     expresion.dir= TablaCadena.getIndexStr(cadena)
-Sino
-     expresion.dir=TablaCadena.insert(cadena)
-Fin Si
+$$.type ='string'
+if(TablaCadenas.existe(cadena))
+     $$.dir= TablaCadena.getIndexStr(cadena);
+else
+     $$.dir=TablaCadena.insert(cadena);
 }
 
 | CHAR
 {
-expresion.type =’car’
-Si TablaCadenas.existe(car) Entonces
-     expresion.dir= TablaCadena.getIndexStr(car)
-Sino
-     expresion.dir=TablaCadena.insert(car)
-Fin Si
+$$.type =’car’
+if(TablaCadenas.existe(car))
+     $$.dir= TablaCadena.getIndexStr(car)
+else
+     $$.dir=TablaCadena.insert(car)
 };
 
 
 variable : ID variable_comp
 {
-Si STS.getTop().existe(id) Entonces
-     IDGBL = id
-     Si variable_comp.code_est = true Entonces
-          variable.dir=newTemp()
-          variable.type = variable_comp.type
-          genCode(variable.dir ’=’ id’[’ variable_comp.des’]’)
-          variable.base = id.dir
-          variable.code_est= true
-          variable.des = variable_comp.des
-Sino
-         variable.dir = id)
-         variable.type = STS.getTop().getType(id)
-         variable.code_est= false
-Sino
-        error(“No existe la variable”)
-Fin Si
+if(STS.getTop().existe($1)){
+    IDGBL = $1
+    if($2.code_est = true){
+        $$.dir=newTemp()
+        $$.type = $2.type
+        genCode($$.dir ’=’ $1’[’ $2.des’]’)
+        $$.base = $1.dir
+        $$.code_est= true
+        $$.des = $2.des
+    }
+    else{
+        $$.dir = $1
+        $$.type = STS.getTop().getType($1)
+        $$.code_est= false
+    }
+}
+else
+    printf("No existe la variable");
 };
 
 
 variable_comp : dato_est_sim
 {
-variable_comp.type = dato_est_sim.type
-variable_comp.des = dato_est_sim.des
-variable_comp.code_est = dato_est_sim.code_est
+$$.type = $1.type
+$$.des = $1.des
+$$.code_est = $1.code_est
 }
 
 | arreglo
 {
-variable_comp.type = arreglo.type
-variable_comp.des = arreglo.dir
-variable_comp.code_est = true
+$$.type = $1.type
+$$.des = $1.dir
+$$.code_est = true
 }
 
 | LPAR parametros RPAR
 {
-Si STS.getGlobal().getVar(IDGBL)= ’func’ Entonces
-     lista = STS.getGlobal().getListaArgs(IDGBL)
+if(STS.getGlobal().getVar(IDGBL)= ’func’){
+    lista = STS.getGlobal().getListaArgs(IDGBL)
      num = STS.getGlobal().getNumArgs(ID)
-     Si num = parametros.num Entonces
-         Para cada i = 0 hasta i = num hacer
-              Si lista[i] !=parametros.lista[i] entonces
-                  Error(“Los parámetros pasados no coinciden con los parámetros de la función”)
-Fin si
+     if(num = $2.num){
+         for(i=0;i=num;i++){
+             if(lista[i]!=$2.lista[i])
+                printf("Los parámetros pasados no coinciden con los parámetros de la función");
+         }
+     }
+}
 };
 
 
 dato_est_sim : dato_est_sim POINT ID
 {
-Si dato_est_sim1.estructura = true Entonces
-    Si dato_est_sim1.tabla.existe(id) Entonces
-        dato_est_sim.des = dato_est_sim1.des + dato_est_sim.tabla1.getDir(id)
-        typeTemp=dato_est_sim1.tabla.getType(id)
-        estTemp = dato_est_sim1.tabla.tablaTipos.getName(typeTemp)
-        Si estTemp = ’struct’ Entonces
-            dato_est_sim.estructura= true
-            dato_est_sim.tabla= dato_est_sim.tabla.tablaTipos.getTipoBase(typeTemp).tabla
-        Sino
-            dato_est_sim.estructura= false
-            dato_est_sim.tabla= NULO
-            dato_est_sim.type = dato_est_sim1.tabla.getType(id)
-        FinSi
-    dato est sim.code est=true
-    Sino
-           error(“No existe estructura con ese id”)
-    FinSi
-Sino
-    error(“No existe la estructura”)
-FinSi
+if($1.estructura = true){
+    if($1.tabla.existe(id)){
+        $$.des = $1.des + $$.tabla1.getDir(id)
+        typeTemp=$1.tabla.getType(id)
+        estTemp = $1.tabla.tablaTipos.getName(typeTemp)
+        if(estTemp = ’struct’){
+            $$.estructura= true
+            $$.tabla= $$.tabla.tablaTipos.getTipoBase(typeTemp).tabla
+        }
+        else{
+            $$.estructura= false
+            $$.tabla= NULO
+            $$.type = $1.tabla.getType(id)
+        }
+        dato est sim.code est=true
+    }
+    else
+        printf("No existe estructura con ese id");
+}
+else
+    printf("No existe la estructura");
 }
 
 | {
 typeTemp = STS.getTop().getType(id)
-Si STT.getTop().getName(typeTemp) =’struct’ Entonces
-     dato_est_sim.estructura= true
-     dato_est_sim.tabla= STT.getTop().getTipoBase(typeTemp).tabla
-     dato_est_sim.des = 0
-Sino
-     dato_est_sim.estructura= false
-     dato_est_sim.type = STT.getTop().getType(id)
-Fin Si
-dato_est_sim.code est=false
+if(STT.getTop().getName(typeTemp) =’struct’){
+    $$.estructura= true
+    $$.tabla= STT.getTop().getTipoBase(typeTemp).tabla
+    $$.des = 0
+}
+else{
+    $$.estructura= false
+    $$.type = STT.getTop().getType(id)
+}
+$$.code_est=false
 };
 
 
 arreglo : LSQBRACK expresion RSQBRACK
 {
-arreglo.type = STS.getTop().getType(IDGBL)
-Si STT.getTop().getName(arreglo.type) = ’array’ Entonces
-    Si expresion.type = entero Entonces
-        typeTemp = STT.getTop().getTypeBase(arreglo.type)
+$$.type = STS.getTop().getType(IDGBL)
+if(STT.getTop().getName($$.type) = ’array’){
+    if($2.type = entero){
+        typeTemp = STT.getTop().getTypeBase($$.type)
         tam = STT.getTop().getTam(typeTemp)
-        arreglo.dir = newTemp()
-        genCode(arreglo.dir’=’ expresion.dir ’*’ tam)
-    Sino
-        error(“La expresión no es de tipo entero”)
-    Fin Si
-Sino
-    error(“No existe el arreglo”)
-Fin Si
+        $$.dir = newTemp()
+        genCode($$.dir’=’ $2.dir ’*’ tam)
+    }
+    else
+        printf("La expresión no es de tipo entero");
+}
+else
+    printf("No existe el arreglo");
 }
 
 | arreglo LSQBRACK expresion RSQBRACK
 {
-arreglo.type = STS->head.getType(arreglo1.type)
-Si STT.getTop().getName(arreglo.type) = ’array’ Entonces
-    Si expresion.type = entero Entonces
-        typeTemp = STT.getTop().getTypeBase(arreglo.type)
+$$.type = STS->head.getType($1.type);
+if(STT->top().getName(arreglo.type) = ’array’){
+    if($3.type = entero){
+        typeTemp = STT.getTop().getTypeBase($1.type)
         tam = STT.getTop().getTam(typeTemp)
         dirTemp = newTemp()
-        arreglo.dir = newTemp()
-        genCode(dirTemp’=’ expresion.dir ’*’ tam)
-        genCode(arreglo.dir’=’ arreglo1.dir ’+’ dirTemp)
-    Sino
-        error(“La expresión no es de tipo entero”)
-    Fin Si
-Sino
-   error(“No existe el arreglo”)
-Fin Si
+        $$.dir = newTemp()
+        genCode(dirTemp’=’ $3.dir ’*’ tam)
+        genCode($$.dir’=’ $1.dir ’+’ dirTemp)
+    }
+    else
+        printf("La expresión no es de tipo entero");
+}
+else
+   printf("No existe el arreglo");
 };
 
 
