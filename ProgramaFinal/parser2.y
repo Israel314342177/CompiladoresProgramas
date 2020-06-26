@@ -63,651 +63,493 @@ Descripción: Gramática
 */
 %%
 
-programa : declaraciones funciones  {
-//Tabla de simbolos
-SYMTAB *newTS;
-newTS = init_sym_tab();
-push_st(STS,newTS);
-
-//Tabla de tipos
-TYPTAB *newTT;
-newTT = init_type_tab();
-push_tt(STT,newTT);
-
-dir = 0;
-CODE *prog,*func;
-func = init_code();
-prog = func;
-};
-
-
-declaraciones : tipo lista_var SEMICOLON declaraciones {tipo = $1.type;}
-            | tipo_registro lista_var SEMICOLON declaraciones {tipo = $1.type;}
-            | ;
-
-
-tipo_registro : STRUCT START declaraciones END 
-{
-//Tabla de simbolos
-SYMTAB *newTS;
-newTS = init_sym_tab();
-push_st(STS,newTS);
-
-//Tabla de tipos
-TYPTAB *newTT;
-newTT = init_type_tab();
-push_tt(STT,newTT);
-
-dt *dirTR;
-dirTR = init_dt();
-dirTR -> dir = dir;
-push_dir(SDir,dirTR);
-dir = 0;
-SYMTAB *SymTab;
-SymTab = pop_st(STS);
-SymTab->tt = pop_tt(STT);
-tam = sizeof(SymTab);
-dir = pop_dir(SDir)->dir;
-TYP *newTipo;
-newTipo = init_sym();
-newTipo-> tam = tam;
-strcpy(newTipo->nombre,"struct");
-newTipo->tb->is_est = 0;
-newTipo->tb->tipo->SS = SymTab;
-$$.type = append_type(STT->top,newTipo);
-};
-
-
-tipo : base tipo_arreglo
-{
-base = $1.base;
-$$.type = $2.type;
-};
-
-
-base : INT {$$.base = 0;}
-    | FLOAT {$$.base = 0;}
-    | DOUBLE {$$.base = 0;}
-    | CHAR {$$.base = 0;}
-    | VOID {$$.base = -1;};
-
-
-tipo_arreglo : LSQBRACK NUM RSQBRACK tipo_arreglo
-{
-if(sizeof($2)==sizeof(int)){
-    if($2.dir > 0)
-        $$.type = STT.getTop().insert(’array’,num, $1.tipo)
-     else
-        printf("El indice debe ser mayor a 0");
-}
-else
-     printf("El indice debe de ser entero");
-}
-| {tipo_arreglo.type = baseGBL};
-
-
-lista_var : lista_var COMMA ID
-{
-if(!STS.getTop().existe($3))
-    STS.getTop().insert($3, typeGBL, dir, ’var’, null, null )
-            dir = dir + STT.getTop().getTam(typeGBL)
-else
-    printf("El id ya existe");
-}
-| ID
-{
-if(!STS.getTop().existe($1))
-    STS.getTop().insert($1, typeGBL, dir, ’var’, null, null )
-    dir = dir + STT.getTop().getTam(typeGBL)
-else
-    printf("El id ya existe");
-};
-
-
-funciones : DEF tipo ID LPAR argumentos RPAR START declaraciones sentencias END funciones
-{
-if(!STS.getGlobal().existe($3)){
-    STS.push(newTS())
-    STT.push(newTT())
-    SDir.push(dir)
-    dir = 0;
-    listaRET = newListRet()
-   if(cmpRet(lista_RET,$2.type)){
-       L = newLabel()
-       backpatch(sentencias.nextlist, L)
-       genCode(label L)
-       STS.pop()
-       STT.pop()
-   }
-   else
-       printf("El valor no corresponde al tipo de la función");
-}
-else
-   printf("El id ya fue declarado");
-}
-| ;
-
-
-argumentos : lista_arg
-{
-$$.lista = $1.lista;
-$$.num = $1.num;
-}
-| VOID
-{
-$$.lista = NULL;
-$$.num = 0;
-};
-
-
-lista_arg : lista_arg COMMA arg
-{
-$$.lista = $1.lista;
-$$.lista.append(arg.type);
-$$.num = $11.num + 1;
-}
-| arg
-{
-$$.lista = newList()
-$$.lista.append($3.type)
-$$.num = 1
-};
-
-
-arg : tipo_arg ID
-{
-if(!STS.getTop().existe($2)){
-    STS.getTop().append(id, $1.type, dir, ’arg’, NULO, NULO)
-    dir = dir + STT.getTop().getTam($1.type)
-    $$.type = $1.type
-}
-else
-     printf("El identificador ya fue declarado");
-};
-
-
-tipo_arg : base param_arr
-{
-baseGBL = $1.base
-$$.type = $2.type
-};
-
-
-param_arr : LSQBRACK RSQBRACK param_arr {$$.type = STT.getTop().insert(’array), 0, $1.tipo)}
-| {$$.type = baseGBL};
-
-
-sentencias : sentencias sentencia
-{
-L = newLabel()
-backpatch($1.nextlist, L)
-genCode(label L)
-} | ;
-
-
-sentencia : IF e_bool THEN sentencia END %prec SIT
-{
-L = newLabel()
-backpatch($2.truelist, L)
-$$.nextlist =combinar($2.falselist, $4.nextlist)
-genCode(label L)
-}
-
-| IF e_bool THEN sentencia ELSE sentencia END
-{
-L1 = newLabel()
-L2 = newLabel()
-backpatch($2.truelist, L1)
-backpatch($2.falselist, L2)
-$$.nextlist = combinar($4.nextlist,$6.nextlist)
-genCode(label L1)
-genCode(’goto’ $4.nextlist[0])
-genCode(label L2)
-}
-
-| WHILE e_bool DO sentencia END
-{
-L1 = newLabel()
-L2 = newLabel()
-backpatch($4.nextlist, L1)
-backpatch($2.truelist, L2)
-$$.nextlist = $2.falselist
-genCode(label L1)
-genCode(label L2)
-genCode(’goto’ $4.nextlist[0])
-}
-
-| DO sentencia WHILE e_bool SEMICOLON
-{
-L = newLabel()
-genCode(”label” L)
-batckbatch($2.nextlist, L)
-}
-
-| SWITCH LPAR variable RPAR DO casos predeterminado END
-{
-prueba = combinar($6.prueba,$7.prueba)
-backpatch($6.nextlist, L2)
-sustituir(”??”, $3.dir, prueba)
-}
-
-| variable ASSIGN expresion SEMICOLON
-{
-dir = reducir($3.dir,$3.type,$1.type)
-if($1.code_est = true)
-    genCode($1.base'['$1.des']' '=' dir)
-else
-    genCode($1.dir ’=’ dir)
-}
-
-| PRINT expresion SEMICOLON
-{gen(”write” $2.dir)}
-
-| SCAN variable SEMICOLON
-{gen(”read” $2.dir)}
-
-| RETURN SEMICOLON
-{genCode("return")}
-
-| RETURN expresion SEMICOLON
-{
-index = newIndex()
-$$.nextlist = newIndexList(index)
-genCode("goto" index)
-}
-
-| BREAK SEMICOLON
-{
-index = newIndex()
-$$.nextlist = newIndexList(index)
-genCode(”goto” index)
-}
-
-| START sentencias END {$$.nextlist = $2.nextlist};
-
-
-casos : CASE NUM COLON sentencia casos
-{
-$$.nextlist =combinar($5.nextlist, $4.nextlist)
-L = newLabel()
-/*Indica el inicio del código para la sentencia*/
-genCode("label" L)
-$$.prueba = $5.prueba
-$$.prueba.append(if "??" "==" $2.dir "goto" L )
-}
-| CASE NUM COLON sentencia
-{
-$$.prueba = newCode()
-L = newLabel()
-/*Indica el inicio del c´odigo para la sentencia*/
-genCode("label" L)
-$$.prueba.append(if "??" "==" $2.dir "goto" L)
-$$.nextlist = $4.nextlist
-};
-
-
-predeterminado : PRED COLON sentencia
-{
-$$.prueba = newCode()
-L = newLabel()
-/*Indica el inicio del código para la sentencia*/
-genCode("label" L)
-$$.prueba.append("goto" L)
-}
-| {$$.prueba = NULO};
-
-
-e_bool : e_bool OR e_bool %prec SIT
-{
-L = newLabel()
-backpatch($1.falselist, L)
-$$.truelist = combinar($1.truelist,$2.truelist)
-$$.falselist = $3.falselist
-genCode(label L)
-}
-
-| e_bool AND e_bool
-{
-L = newLabel()
-backpatch($1.truelist, L)
-$$.truelist = $1.truelist
-$$.falselist = combinar($1.falselist,$3.falselist)
-genCode(label L)
-}
-
-| NOT e_bool
-{
-$$.truelist = $2.falselist
-$$.falselist = $2.truelist
-}
-
-| relacional
-{
-$$.truelist = $1.truelist
-$$.falselist = $1.falselist
-}
-
-| TRUE
-{
-index0 = newIndex()
-$$.truelist = newIndexList(index0)
-genCode('goto' index0)
-}
-
-| FALSE
-{
-index0 = newIndex()
-$$.falselist = newIndexList(index0)
-genCode('goto' index0)
-};
-
-
-relacional : relacional GREATER relacional
-{
-index0 = newIndex()
-index1 = newIndex()
-$$.truelist = newIndexList(index0)
-$$.falselist = newIndexList(index1)
-genCode('if' $1.dir > $3 'goto' index0)
-genCode('goto' index1)
-}
-
-| relacional LESS relacional
-{
-index0 = newIndex()
-index1 = newIndex()
-$$.truelist = newIndexList(index0)
-$$.falselist = newIndexList(index1)
-genCode('if' $1.dir < $3 'goto' index0)
-genCode('goto' index1)
-}
-
-| relacional LT relacional
-{
-index0 = newIndex()
-index1 = newIndex()
-$$.truelist = newIndexList(index0)
-$$.falselist = newIndexList(index1)
-genCode('if' $1.dir <= $3 'goto' index0)
-genCode('goto' index1)
-}
-
-| relacional GT relacional
-{
-index0 = newIndex()
-index1 = newIndex()
-$$.truelist = newIndexList(index0)
-$$.falselist = newIndexList(index1)
-genCode('if' $1.dir >= $3 'goto' index0)
-genCode('goto' index1)
-}
-
-| relacional NOTEQUAL relacional
-{
-index0 = newIndex()
-index1 = newIndex()
-$$.truelist = newIndexList(index0)
-$$.falselist = newIndexList(index1)
-genCode('if' $1.dir <> $3 'goto' index0)
-genCode('goto' index1)
-}
-
-| relacional EQUAL relacional
-{
-index0 = newIndex()
-index1 = newIndex()
-$$.truelist = newIndexList(index0)
-$$.falselist = newIndexList(index1)
-genCode('if'$1.dir = $3 'goto' index0)
-genCode('goto' index1)
-}
-
-| expresion
-{
-$$.dir = $1.dir;
-$$.tipo = $1.tipo;
-};
-
-
-expresion : expresion PLUS expresion %prec SIT
-{
-$$.type = max($1.type, $3.type)
-$$.dir = newTemp()
-dir1 = ampliar($1.dir,$1.type,$3.type)
-dir2 = ampliar($3.dir,$3.type,$1.type)
-getCode($$.dir ’=’ dir1 ’+’ dir2)
-}
-
-| expresion MINUS expresion
-{
-$$.type = max($1.type,$3.type)
-$$.dir = newTemp()
-dir1 = ampliar($1.dir,$1.type,$3.type)
-dir2 = ampliar($3.dir,$3.type,$1.type)
-getCode($$.dir ’=’ dir1 ’-’ dir2)
-}
-
-| expresion MUL expresion
-{
-$$.type = max($1.type,$3.type)
-$$.dir = newTemp()
-dir1 = ampliar($1.dir, $1.type,$3.type)
-dir2 = ampliar($3.dir, $3.type,$1.type)
-getCode($$.dir ’=’ dir1 ’*’ dir2)
-}
-
-| expresion DIV expresion
-{
-$$.type = max($1.type,$3.type)
-$$.dir = newTemp()
-dir1 = ampliar($1.dir, $1.type,$3.type)
-dir2 = ampliar($3.dir, $3.type,$1.type)
-getCode($$.dir ’=’ dir1 ’/’ dir2)
-}
-
-| expresion MOD expresion
-{
-if($1.type = entero && $3.type = entero){
-    $$.type = max($1.type,$3.type);
-    $$.dir = newTemp();
-    dir1 = ampliar($1.dir, $1.type,$3.type);
-    dir2 = ampliar($3.dir, $3.type,$1.type);
-    getCode($$.dir ’=’ dir1 ’+’ dir2);
-}
-else
-   printf("No se puede obtener el modulo si los operandos no son enteros");
-}
-
-| LPAR expresion RPAR
-{
-$$.type = $2.type;
-$$.dir = $2.dir;
-}
-
-| variable
-{
-$$.type = $1.type;
-$$.dir = $1.dir;
-}
-
-| NUM
-{
-$$.type = $1.type;
-$$.dir = $1.dir;
-}
-
-| STRING
-{
-$$.type ='string'
-if(TablaCadenas.existe(cadena))
-     $$.dir= TablaCadena.getIndexStr(cadena);
-else
-     $$.dir=TablaCadena.insert(cadena);
-}
-
-| CHAR
-{
-$$.type =’car’
-if(TablaCadenas.existe(car))
-     $$.dir= TablaCadena.getIndexStr(car)
-else
-     $$.dir=TablaCadena.insert(car)
-};
-
-
-variable : ID variable_comp
-{
-if(STS.getTop().existe($1)){
-    IDGBL = $1
-    if($2.code_est = true){
-        $$.dir=newTemp()
-        $$.type = $2.type
-        genCode($$.dir ’=’ $1’[’ $2.des’]’)
-        $$.base = $1.dir
-        $$.code_est= true
-        $$.des = $2.des
-    }
-    else{
-        $$.dir = $1
-        $$.type = STS.getTop().getType($1)
-        $$.code_est= false
-    }
-}
-else
-    printf("No existe la variable");
-};
-
-
-variable_comp : dato_est_sim
-{
-$$.type = $1.type
-$$.des = $1.des
-$$.code_est = $1.code_est
-}
-
-| arreglo
-{
-$$.type = $1.type
-$$.des = $1.dir
-$$.code_est = true
-}
-
-| LPAR parametros RPAR
-{
-if(STS.getGlobal().getVar(IDGBL)= ’func’){
-    lista = STS.getGlobal().getListaArgs(IDGBL)
-     num = STS.getGlobal().getNumArgs(ID)
-     if(num = $2.num){
-         for(i=0;i=num;i++){
-             if(lista[i]!=$2.lista[i])
-                printf("Los parámetros pasados no coinciden con los parámetros de la función");
-         }
-     }
-}
-};
-
-
-dato_est_sim : dato_est_sim POINT ID
-{
-if($1.estructura = true){
-    if($1.tabla.existe(id)){
-        $$.des = $1.des + $$.tabla1.getDir(id)
-        typeTemp=$1.tabla.getType(id)
-        estTemp = $1.tabla.tablaTipos.getName(typeTemp)
-        if(estTemp = ’struct’){
-            $$.estructura= true
-            $$.tabla= $$.tabla.tablaTipos.getTipoBase(typeTemp).tabla
-        }
-        else{
-            $$.estructura= false
-            $$.tabla= NULO
-            $$.type = $1.tabla.getType(id)
-        }
-        dato est sim.code est=true
-    }
-    else
-        printf("No existe estructura con ese id");
-}
-else
-    printf("No existe la estructura");
-}
-
+programa: {
+		label_c = 0;
+		indice = 0;
+		temp = 0;
+		stackDir = crearStackDir();
+		dir = 0;
+		id_tipo = 5;
+		StackTT = crearTypeStack();
+		StackTS = crearSymStack();
+		tt_global = crearTypeTab();
+		ts_global = crearSymTab();
+		insertarTypeTab(StackTT,tt_global);
+		insertarSymTab(StackTS,ts_global);
+		StackCad = crearStackCad();
+	} declaraciones  funciones {
+		printPilaSym(StackTS);
+		printStack(StackTT);
+		print_code(&CODE);
+	};
+
+declaraciones:
+  tipo {tipo_g = $1.tipo;} lista_var  declaraciones
+| tipo_registro {tipo_g = $1.tipo;} lista_var declaraciones
+| /*epsilon*/ {};
+
+tipo_registro:
+  REGISTRO INICIO declaraciones FIN {
+	typetab *tt = crearTypeTab();
+	symtab *ts = crearSymTab();
+	addStackDir(&stackDir,dir);
+	dir = 0;
+	insertarTypeTab(StackTT,tt);
+	insertarSymTab(StackTS,ts);
+	dir = popStackDir(&stackDir);
+	typetab *tt1 = sacarTypeTab(StackTT);
+	symtab *ts1 = sacarSymTab(StackTS);
+	dir = popStackDir(&stackDir);
+	$$.tipo = insertarTipo(getTop(StackTT),crearTipo("registro",0,-1,-1,true,ts1));
+	id_tipo++;
+	};
+tipo:
+base {base = $1;} tipo_arreglo {$$ = $3;};
+
+base:
+  	ENT {$$.tipo = 1; $$.dim = 4;}
+	| REAL {$$.tipo = 2; $$.dim = 8;}
+	| DREAL {$$.tipo = 3; $$.dim = 16;}
+	| CAR {$$.tipo = 4; $$.dim = 2;}
+	| SIN {$$.tipo = 0; $$.dim = 0;}
+	;
+
+tipo_arreglo:
+  LCOR NUM RCOR tipo_arreglo{
+	if($2.tipo == 1 && $2.ival >= 1){
+		$$.tipo = insertarTipo(getTop(StackTT),crearTipo("array",$4.dim,$4.tipo,$2.ival, false,NULL));
+	}
+	yyerror("El indice tiene que ser entero y mayor que cero");
+	} 
 | {
-typeTemp = STS.getTop().getType(id)
-if(STT.getTop().getName(typeTemp) =’struct’){
-    $$.estructura= true
-    $$.tabla= STT.getTop().getTipoBase(typeTemp).tabla
-    $$.des = 0
+		$$ = base;
+	}
+	;
+
+lista_var:
+  lista_var COMA ID {
+	if(buscar(getTopSym(StackTS),$3) == -1){
+		
+		symbol *sym = crearSymbol($3, tipo_g, dir, "var");
+		insertar(getTopSym(StackTS),sym);
+		dir = dir + getTam(getTop(StackTT),tipo_g);
+	}else{
+		yyerror("el identificador ya fue declarado");
+	}
 }
-else{
-    $$.estructura= false
-    $$.type = STT.getTop().getType(id)
+| ID {
+		if(buscar(getTopSym(StackTS),$1) == -1){
+			symbol *sym = crearSymbol($1, tipo_g, dir, "var");
+			insertar(getTopSym(StackTS),sym);
+			dir = dir + getTam(getTop(StackTT),tipo_g);
+		}else{
+			yyerror("el identificador ya fue declarado");
+		}
+
+	};
+
+funciones:
+  FUNC tipo ID {
+	if(buscar(ts_global,$3) != 1 ){
+		symbol *sym = crearSymbol($3, tipo_g, -1, "func");
+		insertar(ts_global,sym);
+		addStackDir(&stackDir,dir);
+		FuncType = $2.tipo;
+		dir = 0;
+	} else{
+		yyerror("el identificador ya fue declarado");
+	}
+} LPAR argumentos{addListParam(getTopSym(StackTS),$6.lista,$3);} RPAR INICIO  declaraciones {FuncReturn = false;} sentencias FIN funciones {
+	{
+		insertarSymTab(StackTS,ts_global);
+		insertarTypeTab(StackTT,tt_global);
+		dir = popStackDir(&stackDir);
+		agregar_cuadrupla(&CODE,"label","","",$3);
+		label *L = newLabel();
+		backpatch(L,$12.lnext);
+		char lchar[50];
+		label_to_char(lchar,*L);
+		agregar_cuadrupla(&CODE,"label","","",lchar);
+		sacarSymTab(StackTS);
+		sacarTypeTab(StackTT);
+		dir = popStackDir(&stackDir);
+		if($2.tipo != 0 && FuncReturn == false){
+			yyerror("La funcion no tiene valor de retorno");
+		}
+	}
 }
-$$.code_est=false
+	| /*epsilon*/ {};
+
+argumentos:
+  lista_arg { $$.lista = $1.lista; }
+| SIN { $$.lista = NULL; };
+
+lista_arg:
+  lista_arg arg {
+		$$.lista = $1.lista;
+		add_tipo($$.lista,$2.tipo);
+	}
+| arg {
+		$$.lista = crearLP();
+		add_tipo($$.lista,$1.tipo);
+	};
+
+arg:
+  tipo_arg ID {
+		if(buscar(getTopSym(StackTS),$2) == -1){
+			symbol *sym = crearSymbol($2, base.tipo, dir, "var");
+			insertar(getTopSym(StackTS),sym);
+			dir = dir + getTam(getTop(StackTT),base.tipo);
+		}else{
+			yyerror("el identificador ya fue declarado");
+		}
+	};
+
+tipo_arg:
+  base param_arr {
+	base.tipo = $1.tipo;
+	$$.tipo = $2.tipo;
 };
 
+param_arr:
+  LCOR RCOR param_arr {
+		$$.tipo = insertarTipo(getTop(StackTT),crearTipoArray(6,"array",getTipoBase(getTop(StackTT),$3.tipo),$3.dim,-1));
+	}
+| /*epsilon*/ {
+		$$.tipo = base.tipo;
+		$$.dim = base.dim;
+	};
 
-arreglo : LSQBRACK expresion RSQBRACK
-{
-$$.type = STS.getTop().getType(IDGBL)
-if(STT.getTop().getName($$.type) = ’array’){
-    if($2.type = entero){
-        typeTemp = STT.getTop().getTypeBase($$.type)
-        tam = STT.getTop().getTam(typeTemp)
-        $$.dir = newTemp()
-        genCode($$.dir’=’ $2.dir ’*’ tam)
-    }
-    else
-        printf("La expresión no es de tipo entero");
-}
-else
-    printf("No existe el arreglo");
-}
+sentencias:
+  sentencias sentencia {
+	label *L = newLabel();
+	if($1.lnext != NULL){
+		backpatch(L,$1.lnext);
+	}
+	$$.lnext = $2.lnext;
+	}
+| sentencia {$$.lnext = $1.lnext;};
 
-| arreglo LSQBRACK expresion RSQBRACK
-{
-$$.type = STS->head.getType($1.type);
-if(STT->top().getName(arreglo.type) = ’array’){
-    if($3.type = entero){
-        typeTemp = STT.getTop().getTypeBase($1.type)
-        tam = STT.getTop().getTam(typeTemp)
-        dirTemp = newTemp()
-        $$.dir = newTemp()
-        genCode(dirTemp’=’ $3.dir ’*’ tam)
-        genCode($$.dir’=’ $1.dir ’+’ dirTemp)
-    }
-    else
-        printf("La expresión no es de tipo entero");
-}
-else
-   printf("No existe el arreglo");
-};
+sentencia:
+	SI e_bool ENTONCES  sentencias  FIN {
+		label *L = newLabel();
+		backpatch(L, $2.ltrue);
+		$$.lnext = merge($2.lfalse,$4.lnext);
+	} %prec SIX
+	| SI e_bool  sentencias  SINO  sentencias  FIN {
+		label *L = newLabel();
+		label *L1 = newLabel();
+		backpatch(L, $2.ltrue);
+		backpatch(L1, $2.lfalse);
+		$$.lnext = merge($3.lnext,$5.lnext);
+	}
+	| MIENTRAS  e_bool HACER  sentencias  FIN {
+		label *L = newLabel();
+		label *L1 = newLabel();
+		backpatch(L, $4.lnext);
+		backpatch(L1, $2.ltrue);
+		$$.lnext = $2.lfalse;
+		char lchar[50];
+		label_to_char(lchar,*L);
+		agregar_cuadrupla(&CODE,"goto","","",lchar);
+	}
+	| HACER  sentencia  MIENTRAS_QUE e_bool {
+		label *L = newLabel();
+		label *L1 = newLabel();
+		backpatch(L, $4.ltrue);
+		backpatch(L1, $2.lnext);
+		$$.lnext = $4.lfalse;
+		char lchar[50];
+		label_to_char(lchar,*L);
+		agregar_cuadrupla(&CODE,"goto","","",lchar);
+	}
+	| ID ASIG expresion {
+		if(buscar(getTopSym(StackTS),$1)!=-1){
+			int t = getTipo(getTopSym(StackTS),$1);
+			int d = getDir(getTopSym(StackTS),$1);
+			char di[50];
+			sprintf(di,"%d",$3.dir);
+			char *alfa = reducir(di,$3.tipo,t);
+			char res[100];
+			sprintf(res,"%s %d","Id",d);
+			if(alfa != NULL){
+				agregar_cuadrupla(&CODE,"=",alfa,"",res); 
+			}else{
+				agregar_cuadrupla(&CODE,"=","0","",res);
+			}
+			$$.lnext = NULL;
+		}else{
+			yyerror("Variable no declarada");
+		}
+	}
+	| variable ASIG expresion {
+		char d[25];
+		sprintf(d,"%d",$3.dir);
+		char *alfa = reducir(d,$3.tipo,$1.tipo);
+		char b[25];
+		sprintf(b,"%c",$1.base[$1.dir]);
+		agregar_cuadrupla(&CODE,"=",alfa,"",b);
+		$$.lnext = NULL;
+	}
+	| ESCRIBIR expresion {
+		char d[100];
+		sprintf(d,"%d",$2.dir);
+		agregar_cuadrupla(&CODE,"print",d,"","");
+		$$.lnext = NULL;
+	}
+	| LEER variable {
+		char d[100];
+		sprintf(d,"%d",$2.dir);
+		agregar_cuadrupla(&CODE,"scan",d,"",d);
+		$$.lnext = NULL;
+	}
+	| DEVOLVER {
+		if ( FuncType == 0 ){
+			agregar_cuadrupla(&CODE,"return","","","");
+		}else{
+			yyerror("La funcion no puede retonar valores");
+		}
+		$$.lnext = NULL;
+	}
+	| DEVOLVER expresion {
+		if ( FuncType != 0 ){
+			char d[10];
+			sprintf(d,"%d",$2.dir);
+			char *alfa = reducir(d,$2.tipo,FuncType);
+			sprintf(d,"%d",$2.dir);
+			agregar_cuadrupla(&CODE,"return",d,"","");
+			FuncReturn = true;
+		}else{
+			yyerror("La funcion debe retonar valor no sin");
+		}
+		$$.lnext = NULL;
+	}
+	| TERMINAR {
+		char *I = newIndex();
+		agregar_cuadrupla(&CODE,"goto","","",I);
+		$$.lnext = newLabel();
+	};
 
+e_bool:
+ e_bool OO e_bool { 
+	label *L = newLabel();
+	backpatch(L, $1.lfalse);
+	$$.ltrue = merge($1.ltrue,$3.ltrue);
+	$$.lfalse = $3.lfalse;
+	char lchar[50];
+	label_to_char(lchar,*L);
+	agregar_cuadrupla(&CODE,"label","","",lchar);
+	}
+	|e_bool YY e_bool {
+		label *L = newLabel();
+		backpatch(L, $1.ltrue);
+		$$.ltrue = merge($1.lfalse,$3.lfalse);
+		$$.ltrue = $3.ltrue;
+		char lchar[50];
+		label_to_char(lchar,*L);
+		agregar_cuadrupla(&CODE,"label","","",lchar);
+	}
+	| NOT e_bool {
+		$$.ltrue = $2.lfalse;
+		$$.lfalse = $2.ltrue;
+	}
+	| relacional {
+		$$.ltrue = $1.ltrue;
+		$$.lfalse = $1.lfalse;
+	}
+	|VERDADERO {
+		char* I = newIndex();
+		$$.ltrue = NULL;
+		$$.ltrue = create_list(atoi(I));
+		agregar_cuadrupla(&CODE,"goto","","",I);
+		$$.lfalse = NULL;
+	}
+	| FALSO {
+		char* I = newIndex();
+		$$.ltrue = NULL;
+		$$.lfalse = create_list(atoi(I));
+		agregar_cuadrupla(&CODE,"goto","","",I);
+	}
+	;
 
-parametros : lista_param
-{
-$$ = $1;
-$$.num = $$1.num;
-}
+relacional:
+	relacional GRT relacional { $$ = relacional($1,$3,$2); }
+	| relacional SMT relacional { $$ = relacional($1,$3,$2); }
+	| relacional GREQ relacional { $$ = relacional($1,$3,$2); }
+	| relacional SMEQ relacional { $$ = relacional($1,$3,$2); }
+	| relacional DIF relacional { $$ = relacional($1,$3,$2); }
+	| relacional EQEQ relacional { $$ = relacional($1,$3,$2); }
+	| expresion {
+		$$.tipo = $1.tipo;
+		$$.dir = $1.dir;
+	};
 
-|{
-$$ = NULL;
-$$.num = 0
-};
+expresion:
+  	expresion MAS expresion {$$ = operacion($1,$3,$2);}
+	| expresion MENOS expresion {$$ = operacion($1,$3,$2);}
+	| expresion PROD expresion {$$ = operacion($1,$3,$2);}
+	| expresion DIV expresion {$$ = operacion($1,$3,$2);}
+	| expresion MOD expresion {$$ = operacion($1,$3,$2);}
+	| LPAR expresion RPAR {$$.dir = $2.dir;$$.tipo=$2.tipo;}
+	| variable {
+		$$.dir = atoi(newTemp());
+		$$.tipo = $1.tipo;
+		char d[50];
+		sprintf(d,"%d",$$.dir);
+		char b[50];
+		sprintf(b,"%c",$1.base[$1.dir]);
+		agregar_cuadrupla(&CODE, "*",b,"",d);
+	}
+	| NUM {
+		$$.tipo = $1.tipo;
+		if($1.tipo == 1)
+			$$.dir = $1.ival;
+		if($1.tipo == 2)
+			$$.dir = $1.fval;
+		if($1.tipo == 3)
+			$$.dir = $1.dval;
+	}
+	| CADENA {
+		$$.tipo = 7;
+		//$$.dir = addStackCad(StackCad,$1);
+	}
+	| CARACTER {
+		$$.tipo = 4;
+		//$$.dir = addStackCad(StackCad,$1);
+	}
+	| ID LPAR parametros RPAR {
+		if(buscar(ts_global,$1) != -1){
+			if(strcmp(getTipoVar(ts_global,$1), "func")==0){
+				listParam *lista = getListParam(ts_global,$1);
+				if(getNumListParam(lista) != getNumListParam($3.lista)){
+					yyerror("El numero de argumentos no coincide");
+				}
+				param *p,*pl;
+				p = $3.lista->root;
+				pl = lista->root;
+				for(int i=0; i<getNumListParam($3.lista);i++){
+					if(p->tipo != pl->tipo){
+						yyerror("El tipo de los parametros no coincide");
+					}p = p->next;
+					pl = pl->next;
+				}
+				$$.dir = atoi(newTemp());
+				$$.tipo = getTipo(ts_global,$1);
+				char *d;
+				sprintf(d,"%d",$$.dir);
+				agregar_cuadrupla(&CODE,"=","call",$1,d);
+			}
+		}else{
+			yyerror("El identificador no ha sido declarado");
+		}
+	}
+	;
 
+variable:
+	ID {
+		if(buscar(getTopSym(StackTS),$1)!=-1){
+			$$.dir = getDir(getTopSym(StackTS),$1);
+			$$.tipo = getTipo(getTopSym(StackTS),$1);
+			strcpy($$.base,"");
+		}else{
+			yyerror("variable ya definida");
+		}
+	}
+	| arreglo {
+		$$.dir = $1.dir;
+		strcpy($$.base,$1.base);
+		$$.tipo = $1.tipo;
+	}
+	| ID PT ID {
+		if(buscar(ts_global,$1)!=-1){
+			int t = getTipo(ts_global,$1);
+			char *t1 = getNombre(tt_global,t);
+			if (strcmp(t1,"registro") == 0 ){
+				tipoBase *tb = getTipoBase(tt_global,t);
+			}
+		}
+	};
 
-lista_param : lista_param COMMA expresion
-{
-$$ = $1;
-append_tipo($$.lista_tipos,init_tipo($1.type));
-$$.num = $$.num + 1;
-}
-| expresion
-{
-$$ = nuevaLista();
-append_tipo($$,init_tipo($1.type));
-$$.num = 1;
-};
+arreglo:
+	ID LCOR expresion RCOR {
+		if(buscar(getTopSym(StackTS),$1) != -1){
+			int t = getTipo(getTopSym(StackTS),$1); 
+			if (strcmp(getNombre(getTop(StackTT),t),"array") == 0){
+				if ($3.tipo == 1){
+					strcpy($$.base,$1);
+					$$.tipo = getTipoBase(getTop(StackTT),t)->t.type;
+					$$.tam = getTam(getTop(StackTT),$$.tipo);
+					$$.dir = atoi(newTemp());
+					char tm[10];
+					intToChar(tm,$$.tam);
+					char dr[10];
+					intToChar(dr,$$.dir);
+					char dre[10];
+					intToChar(dre,$3.dir);
+					agregar_cuadrupla(&CODE,"*",dre,tm,dr);
+				} else{
+					yyerror("La expresion para un indice debe ser entero");
+				}
+			}else{
+				yyerror("El identificador debe ser un arreglo");
+			}
+		
+			}else{
+				yyerror("El Identificador no ha sido declarado");
+			}
+	} 
+	| arreglo LCOR expresion RCOR  {
+		if(strcmp(getNombre(getTop(StackTT),$1.tipo),"array") == 0 ){
+			if ($3.tipo == 1){
+				strcpy($$.base,$1.base);
+				$$.tipo = getTipoBase(getTop(StackTT),$1.tipo)->t.type;
+				$$.tam = getTam(getTop(StackTT),$$.tipo);
+				int temp_1 = atoi(newTemp());
+				$$.dir = atoi(newTemp());
+				char t[10];
+				sprintf(t,"%d",temp_1);
+				char tm[10];
+				sprintf(tm,"%d",$$.tam);
+				char d2[10];
+				sprintf(d2,"%d",$1.dir);
+				agregar_cuadrupla(&CODE,"*",d2,tm,t);
+				char d[10];
+				sprintf(d,"%d",$$.dir);
+				sprintf(d2,"%d",$1.dir);
+				agregar_cuadrupla(&CODE,"+",d2,t,d);
+			}else{
+				yyerror("La expresion para un indice debe ser entero");
+			}
+		}else{
+			yyerror("El arreglo no tiene tantas dimentsiones");
+		}
+	}
+	| {};
+
+parametros:
+  lista_param {
+		$$.lista = $1.lista;
+	}
+	| { $$.lista = NULL;
+	}
+	;
+
+lista_param:
+  lista_param COMA expresion {
+		$$.lista = $1.lista;
+		add_tipo($$.lista,$3.tipo);
+		char *d;
+		sprintf(d,"%d",$3.dir);
+		agregar_cuadrupla(&CODE,"param",d,"","");
+	}
+	| expresion {
+		$$.lista = crearLP();
+		add_tipo($$.lista,$1.tipo);
+		char *d;
+		sprintf(d,"%d",$1.dir);
+		agregar_cuadrupla(&CODE,"param",d,"","");
+	}
+	;
 
 
 %%
